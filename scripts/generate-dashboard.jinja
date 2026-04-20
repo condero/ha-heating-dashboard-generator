@@ -1,0 +1,238 @@
+{# ==================================================================
+   Heating Dashboard Generator
+   ==================================================================
+   Paste into HA Developer Tools > Template.
+   Copy the output into a dashboard's Raw configuration editor.
+
+   Change `lang` below to match your language:
+     'de' = German, 'en' = English
+   Or add your own translations to the `i18n` dictionary.
+   ================================================================== #}
+{%- set lang = 'en' %}
+{%- set i18n = {
+    'de': {
+      'dashboard_title': 'Heizungssteuerung',
+      'all_sections': 'Alle Stockwerke',
+      'btn_off_name': 'Alle Heizungen ausschalten',
+      'btn_off_action': 'Aus',
+      'btn_on_name': 'Letzter Heizwert wiederherstellen',
+      'btn_on_action': 'An',
+      'btn_auto_name': 'Auto-Modus (Zeitplan)',
+      'btn_auto_action': 'Auto',
+      'btn_comfort_name': 'Komfort 21°C',
+      'btn_comfort_action': '21°C',
+      'battery': 'Batterie',
+      'battery_offline': 'offline',
+    },
+    'en': {
+      'dashboard_title': 'Heating Control',
+      'all_sections': 'All floors',
+      'btn_off_name': 'Turn off all heaters',
+      'btn_off_action': 'Off',
+      'btn_on_name': 'Restore last heating value',
+      'btn_on_action': 'On',
+      'btn_auto_name': 'Auto mode (schedule)',
+      'btn_auto_action': 'Auto',
+      'btn_comfort_name': 'Comfort 21°C',
+      'btn_comfort_action': '21°C',
+      'battery': 'Battery',
+      'battery_offline': 'offline',
+    },
+  } %}
+{%- set t = i18n.get(lang, i18n['en']) %}
+{%- set JO = '{%' %}
+{%- set JC = '%}' %}
+{%- set JOs = '{%-' %}
+{%- set colors = ['#FF8A65', '#90CAF9', '#CE93D8', '#C5E1A5', '#80DEEA', '#FFE082', '#F48FB1', '#80CBC4', '#FFAB91', '#9FA8DA', '#E6EE9C', '#B39DDB', '#FFF176', '#BCAAA4', '#81D4FA', '#FFCC80', '#A5D6A7', '#B0BEC5'] %}
+{%- set ents = states.climate | sort(attribute='entity_id') %}
+{%- set ns = namespace(floors=[]) %}
+{%- for e in ents %}
+  {%- set fid = floor_id(e.entity_id) | default('no_floor', true) %}
+  {%- if fid not in ns.floors %}
+    {%- set ns.floors = ns.floors + [fid] %}
+  {%- endif %}
+{%- endfor %}
+views:
+  - type: sections
+    title: {{ t.dashboard_title }}
+    max_columns: 2
+    sections:
+      - id: quick_actions
+        background:
+          color: "{{ colors[0] }}"
+          opacity: 100
+        cards:
+          - type: entities
+            title: "{{ t.all_sections }}"
+            show_header_toggle: false
+            state_color: true
+            entities:
+              - type: button
+                name: "{{ t.btn_off_name }}"
+                action_name: "{{ t.btn_off_action }}"
+                tap_action:
+                  action: call-service
+                  service: climate.turn_off
+                  target:
+                    entity_id:
+{%- for e in ents %}
+                      - {{ e.entity_id }}
+{%- endfor %}
+              - type: button
+                name: "{{ t.btn_on_name }}"
+                action_name: "{{ t.btn_on_action }}"
+                tap_action:
+                  action: call-service
+                  service: climate.set_hvac_mode
+                  data:
+                    hvac_mode: heat
+                  target:
+                    entity_id:
+{%- for e in ents %}
+                      - {{ e.entity_id }}
+{%- endfor %}
+              - type: button
+                name: "{{ t.btn_auto_name }}"
+                action_name: "{{ t.btn_auto_action }}"
+                tap_action:
+                  action: call-service
+                  service: climate.set_hvac_mode
+                  data:
+                    hvac_mode: auto
+                  target:
+                    entity_id:
+{%- for e in ents %}
+                      - {{ e.entity_id }}
+{%- endfor %}
+              - type: button
+                name: "{{ t.btn_comfort_name }}"
+                action_name: "{{ t.btn_comfort_action }}"
+                tap_action:
+                  action: call-service
+                  service: climate.set_temperature
+                  data:
+                    temperature: 21
+                    hvac_mode: heat
+                  target:
+                    entity_id:
+{%- for e in ents %}
+                      - {{ e.entity_id }}
+{%- endfor %}
+{%- for fl_idx in range(ns.floors | length) %}
+{%- set fl = ns.floors[fl_idx] %}
+{%- set color = colors[((fl_idx + 1) % (colors | length))] %}
+{%- set fl_name = floor_name(fl) | default(fl | replace('_', ' ') | title, true) %}
+{%- set ns2 = namespace(fents=[]) %}
+{%- for e in ents %}
+  {%- if floor_id(e.entity_id) | default('no_floor', true) == fl %}
+    {%- set ns2.fents = ns2.fents + [e] %}
+  {%- endif %}
+{%- endfor %}
+      - id: {{ fl }}
+        background:
+          color: "{{ color }}"
+          opacity: 100
+        cards:
+          - type: entities
+            title: "{{ fl_name }}"
+            show_header_toggle: false
+            state_color: true
+            entities:
+              - type: button
+                name: "{{ t.btn_off_name }}"
+                action_name: "{{ t.btn_off_action }}"
+                tap_action:
+                  action: call-service
+                  service: climate.turn_off
+                  target:
+                    entity_id:
+{%- for e in ns2.fents %}
+                      - {{ e.entity_id }}
+{%- endfor %}
+              - type: button
+                name: "{{ t.btn_on_name }}"
+                action_name: "{{ t.btn_on_action }}"
+                tap_action:
+                  action: call-service
+                  service: climate.set_hvac_mode
+                  data:
+                    hvac_mode: heat
+                  target:
+                    entity_id:
+{%- for e in ns2.fents %}
+                      - {{ e.entity_id }}
+{%- endfor %}
+              - type: button
+                name: "{{ t.btn_auto_name }}"
+                action_name: "{{ t.btn_auto_action }}"
+                tap_action:
+                  action: call-service
+                  service: climate.set_hvac_mode
+                  data:
+                    hvac_mode: auto
+                  target:
+                    entity_id:
+{%- for e in ns2.fents %}
+                      - {{ e.entity_id }}
+{%- endfor %}
+              - type: button
+                name: "{{ t.btn_comfort_name }}"
+                action_name: "{{ t.btn_comfort_action }}"
+                tap_action:
+                  action: call-service
+                  service: climate.set_temperature
+                  data:
+                    temperature: 21
+                    hvac_mode: heat
+                  target:
+                    entity_id:
+{%- for e in ns2.fents %}
+                      - {{ e.entity_id }}
+{%- endfor %}
+              - type: divider
+{%- for e in ns2.fents %}
+{%- set bat = 'sensor.' ~ e.entity_id.split('.')[1] ~ '_battery' %}
+{%- set dname = area_name(e.entity_id) or e.attributes.get('friendly_name', '') %}
+{%- if state_attr(bat, 'friendly_name') %}
+              - type: conditional
+                conditions:
+                  - condition: numeric_state
+                    entity: {{ bat }}
+                    below: 20
+                row:
+                  entity: {{ bat }}
+                  name: "{{ t.battery }} {{ dname }}"
+                  secondary_info: last-updated
+              - type: conditional
+                conditions:
+                  - condition: state
+                    entity: {{ bat }}
+                    state: "unknown"
+                row:
+                  entity: {{ bat }}
+                  name: "{{ t.battery }} {{ dname }} ({{ t.battery_offline }})"
+                  secondary_info: last-updated
+                card_mod:
+                  style: |
+                    :host { --state-icon-color: #F44336; }
+{%- endif %}
+{%- endfor %}
+{%- for e in ns2.fents %}
+{%- set dname = area_name(e.entity_id) or e.attributes.get('friendly_name', '') %}
+              - entity: {{ e.entity_id }}
+                name: "{{ dname }}"
+                secondary_info: last-changed
+                card_mod:
+                  style: |
+{{ '                    ' ~ JO ~ " set m = states['" ~ e.entity_id ~ "'].state " ~ JC }}
+                    :host {
+                      --state-climate-off-color:
+{{ '                        ' ~ JOs ~ " if m == 'heat' " ~ JC }} var(--state-climate-heat-color)
+{{ '                        ' ~ JOs ~ " elif m == 'auto' " ~ JC }} var(--state-climate-auto-color)
+{{ '                        ' ~ JOs ~ " elif m == 'heat_cool' " ~ JC }} var(--state-climate-heat_cool-color)
+{{ '                        ' ~ JOs ~ " elif m == 'cool' " ~ JC }} var(--state-climate-cool-color)
+{{ '                        ' ~ JOs ~ " else " ~ JC }} var(--state-inactive-color)
+{{ '                        ' ~ JOs ~ " endif " ~ JC }};
+                    }
+{%- endfor %}
+{%- endfor -%}
