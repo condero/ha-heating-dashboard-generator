@@ -9,18 +9,36 @@
    Or add your own translations to the `i18n` dictionary.
    ================================================================== #}
 {%- set lang = 'en' %}
+{#- name_format: how to label each thermostat. Available placeholders:
+      {friendly_name} = thermostat's friendly name (e.g. "Heater 1")
+      {area_name}     = room/area name in HA (e.g. "Office")
+      Examples: '{friendly_name}', '{area_name}', '{friendly_name} ({area_name})' -#}
+{%- set name_format = '{friendly_name}' %}
+{#- battery_format: pattern to find the battery sensor for each thermostat.
+      {entity_slug} = the part after 'climate.' in the entity ID (e.g. "trvzb_office")
+      Examples: 'sensor.{entity_slug}_battery', 'sensor.{entity_slug}_batterie' -#}
+{%- set battery_format = 'sensor.{entity_slug}_battery' %}
+{%- set comfort_temperature = 21 %}
+{%- set temp_unit = '°C' %}
+{%- set show_off_button = true %}
+{%- set show_on_button = true %}
+{%- set show_auto_button = true %}
+{%- set show_comfort_button = true %}
+{%- set battery_low_threshold = 20 %}
+{%- set max_columns = 2 %}
+{%- set reverse_floor_order = false %}
 {%- set i18n = {
     'de': {
       'dashboard_title': 'Heizungssteuerung',
       'all_sections': 'Alle Stockwerke',
-      'btn_off_name': 'Alle Heizungen ausschalten',
+      'btn_off_name': 'Alle Heizkörper ausschalten',
       'btn_off_action': 'Aus',
       'btn_on_name': 'Letzter Heizwert wiederherstellen',
       'btn_on_action': 'An',
       'btn_auto_name': 'Auto-Modus (Zeitplan)',
       'btn_auto_action': 'Auto',
-      'btn_comfort_name': 'Komfort 21°C',
-      'btn_comfort_action': '21°C',
+      'btn_comfort_name': 'Komfort ' ~ comfort_temperature ~ temp_unit,
+      'btn_comfort_action': comfort_temperature ~ temp_unit,
       'battery': 'Batterie',
       'battery_offline': 'offline',
     },
@@ -33,8 +51,8 @@
       'btn_on_action': 'On',
       'btn_auto_name': 'Auto mode (schedule)',
       'btn_auto_action': 'Auto',
-      'btn_comfort_name': 'Comfort 21°C',
-      'btn_comfort_action': '21°C',
+      'btn_comfort_name': 'Comfort ' ~ comfort_temperature ~ temp_unit,
+      'btn_comfort_action': comfort_temperature ~ temp_unit,
       'battery': 'Battery',
       'battery_offline': 'offline',
     },
@@ -45,17 +63,30 @@
 {%- set JOs = '{%-' %}
 {%- set colors = ['#FF8A65', '#90CAF9', '#CE93D8', '#C5E1A5', '#80DEEA', '#FFE082', '#F48FB1', '#80CBC4', '#FFAB91', '#9FA8DA', '#E6EE9C', '#B39DDB', '#FFF176', '#BCAAA4', '#81D4FA', '#FFCC80', '#A5D6A7', '#B0BEC5'] %}
 {%- set ents = states.climate | sort(attribute='entity_id') %}
+{%- set all_floors = floors() %}
+{%- if reverse_floor_order %}
+  {%- set all_floors = all_floors | reverse | list %}
+{%- endif %}
 {%- set ns = namespace(floors=[]) %}
+{%- for fl in all_floors %}
+  {%- for e in ents %}
+    {%- if floor_id(e.entity_id) == fl %}
+      {%- if fl not in ns.floors %}
+        {%- set ns.floors = ns.floors + [fl] %}
+      {%- endif %}
+    {%- endif %}
+  {%- endfor %}
+{%- endfor %}
 {%- for e in ents %}
   {%- set fid = floor_id(e.entity_id) | default('no_floor', true) %}
-  {%- if fid not in ns.floors %}
+  {%- if fid == 'no_floor' and fid not in ns.floors %}
     {%- set ns.floors = ns.floors + [fid] %}
   {%- endif %}
 {%- endfor %}
 views:
   - type: sections
     title: {{ t.dashboard_title }}
-    max_columns: 2
+    max_columns: {{ max_columns }}
     sections:
       - id: quick_actions
         background:
@@ -67,6 +98,7 @@ views:
             show_header_toggle: false
             state_color: true
             entities:
+{%- if show_off_button %}
               - type: button
                 name: "{{ t.btn_off_name }}"
                 action_name: "{{ t.btn_off_action }}"
@@ -78,6 +110,8 @@ views:
 {%- for e in ents %}
                       - {{ e.entity_id }}
 {%- endfor %}
+{%- endif %}
+{%- if show_on_button %}
               - type: button
                 name: "{{ t.btn_on_name }}"
                 action_name: "{{ t.btn_on_action }}"
@@ -91,6 +125,8 @@ views:
 {%- for e in ents %}
                       - {{ e.entity_id }}
 {%- endfor %}
+{%- endif %}
+{%- if show_auto_button %}
               - type: button
                 name: "{{ t.btn_auto_name }}"
                 action_name: "{{ t.btn_auto_action }}"
@@ -104,6 +140,8 @@ views:
 {%- for e in ents %}
                       - {{ e.entity_id }}
 {%- endfor %}
+{%- endif %}
+{%- if show_comfort_button %}
               - type: button
                 name: "{{ t.btn_comfort_name }}"
                 action_name: "{{ t.btn_comfort_action }}"
@@ -111,13 +149,14 @@ views:
                   action: call-service
                   service: climate.set_temperature
                   data:
-                    temperature: 21
+                    temperature: {{ comfort_temperature }}
                     hvac_mode: heat
                   target:
                     entity_id:
 {%- for e in ents %}
                       - {{ e.entity_id }}
 {%- endfor %}
+{%- endif %}
 {%- for fl_idx in range(ns.floors | length) %}
 {%- set fl = ns.floors[fl_idx] %}
 {%- set color = colors[((fl_idx + 1) % (colors | length))] %}
@@ -138,6 +177,7 @@ views:
             show_header_toggle: false
             state_color: true
             entities:
+{%- if show_off_button %}
               - type: button
                 name: "{{ t.btn_off_name }}"
                 action_name: "{{ t.btn_off_action }}"
@@ -149,6 +189,8 @@ views:
 {%- for e in ns2.fents %}
                       - {{ e.entity_id }}
 {%- endfor %}
+{%- endif %}
+{%- if show_on_button %}
               - type: button
                 name: "{{ t.btn_on_name }}"
                 action_name: "{{ t.btn_on_action }}"
@@ -162,6 +204,8 @@ views:
 {%- for e in ns2.fents %}
                       - {{ e.entity_id }}
 {%- endfor %}
+{%- endif %}
+{%- if show_auto_button %}
               - type: button
                 name: "{{ t.btn_auto_name }}"
                 action_name: "{{ t.btn_auto_action }}"
@@ -175,6 +219,8 @@ views:
 {%- for e in ns2.fents %}
                       - {{ e.entity_id }}
 {%- endfor %}
+{%- endif %}
+{%- if show_comfort_button %}
               - type: button
                 name: "{{ t.btn_comfort_name }}"
                 action_name: "{{ t.btn_comfort_action }}"
@@ -182,23 +228,24 @@ views:
                   action: call-service
                   service: climate.set_temperature
                   data:
-                    temperature: 21
+                    temperature: {{ comfort_temperature }}
                     hvac_mode: heat
                   target:
                     entity_id:
 {%- for e in ns2.fents %}
                       - {{ e.entity_id }}
 {%- endfor %}
+{%- endif %}
               - type: divider
 {%- for e in ns2.fents %}
-{%- set bat = 'sensor.' ~ e.entity_id.split('.')[1] ~ '_battery' %}
-{%- set dname = area_name(e.entity_id) or e.attributes.get('friendly_name', '') %}
+{%- set bat = battery_format | replace('{entity_slug}', e.entity_id.split('.')[1]) %}
+{%- set dname = name_format | replace('{friendly_name}', e.attributes.get('friendly_name', '')) | replace('{area_name}', area_name(e.entity_id) | default('', true)) %}
 {%- if state_attr(bat, 'friendly_name') %}
               - type: conditional
                 conditions:
                   - condition: numeric_state
                     entity: {{ bat }}
-                    below: 20
+                    below: {{ battery_low_threshold }}
                 row:
                   entity: {{ bat }}
                   name: "{{ t.battery }} {{ dname }}"
@@ -218,7 +265,7 @@ views:
 {%- endif %}
 {%- endfor %}
 {%- for e in ns2.fents %}
-{%- set dname = area_name(e.entity_id) or e.attributes.get('friendly_name', '') %}
+{%- set dname = name_format | replace('{friendly_name}', e.attributes.get('friendly_name', '')) | replace('{area_name}', area_name(e.entity_id) | default('', true)) %}
               - entity: {{ e.entity_id }}
                 name: "{{ dname }}"
                 secondary_info: last-changed

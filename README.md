@@ -9,12 +9,18 @@ A Home Assistant template that generates a complete heating control dashboard. N
 5. **Settings** > **Dashboards** > **Add Dashboard** > name it > **Create**
 6. Open the dashboard > **Edit** > **three-dot menu** > **Raw configuration editor** > paste > **Save** > close editor > **Done**
 
-Done. See the [install guide](docs/install-guide.md) for card-mod options, troubleshooting, and customization (language, colors, display names).
+Done. See the [install guide](docs/install-guide.md) for card-mod options, troubleshooting, and customization (language, display names, battery sensors, colors).
 
 ## Requirements
 
 - Home Assistant 2024.11 or later (for `floor_id()` support)
 - card-mod (optional — needed for colored thermostat icons)
+
+Tested with Home Assistant OS 2026.4.3 (VM on Proxmox). Other installation methods (Docker, Container) may have issues with HACS or uploading files — in that case, use the CDN install option (Option B) for card-mod.
+
+## Compatibility
+
+Developed and tested with [SONOFF TRVZB](https://sonoff.tech/en-us/products/sonoff-zigbee-thermostatic-radiator-valve) Zigbee TRVs. Should work with any HA climate entity — see the [install guide](docs/install-guide.md) for notes on other thermostats.
 
 ## License
 

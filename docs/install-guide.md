@@ -97,10 +97,17 @@ The template auto-detects:
 
 - All climate entities and their battery sensors
 - Floors (via `floor_id()`) — groups thermostats by floor
-- Area names (via `area_name()`) — uses as display names
 - Background colors — cycles through a preset palette
 
 If you don't have floors defined, all thermostats will appear under a single "no_floor" group. You can either define floors in HA or edit the generated YAML to rearrange them.
+
+Floor sections follow the order defined in Home Assistant (Settings > Areas & Zones > Floors), which is typically top-to-bottom by level. To reverse the order (e.g. ground floor first), set:
+
+```jinja2
+{%- set reverse_floor_order = true %}
+```
+
+If you don't have floors defined, all thermostats will appear under a single "no_floor" group at the end. You can either define floors in HA or edit the generated YAML to rearrange them.
 
 ---
 
@@ -139,7 +146,7 @@ Check these things:
 | Thermostat set to auto, currently idle        | Green icon                                      |
 | Thermostat turned off                         | Grey icon                                       |
 | Battery sensor unknown (device offline)       | Red icon                                        |
-| Battery low (<20%)                            | Red icon (HA built-in)                          |
+| Battery low (below threshold)                 | Red icon (HA built-in)                          |
 | Quick action buttons                          | Work when tapped                                |
 
 ---
@@ -166,14 +173,108 @@ Add a new entry to the `i18n` dictionary in the template. Copy an existing block
   'btn_on_action': 'On',
   'btn_auto_name': 'Mode auto (programme)',
   'btn_auto_action': 'Auto',
-  'btn_comfort_name': 'Confort 21°C',
-  'btn_comfort_action': '21°C',
+  'btn_comfort_name': 'Confort ' ~ comfort_temperature ~ temp_unit,
+  'btn_comfort_action': comfort_temperature ~ temp_unit,
   'battery': 'Batterie',
   'battery_offline': 'hors ligne',
 },
 ```
 
-## Colors
+## Display names
+
+Each thermostat gets a display name on the dashboard. By default, it uses the entity's friendly name (e.g. "TRVZB Office"). You can customize this with the `name_format` setting at the top of the template.
+
+Available placeholders:
+
+| Placeholder     | What it shows                          | Example          |
+| --------------- | -------------------------------------- | ---------------- |
+| `{friendly_name}` | The thermostat's friendly name in HA | "Heizkörper"     |
+| `{area_name}`     | The HA area/room the device is in    | "Büro"           |
+
+Common configurations:
+
+```jinja2
+{#- Just the thermostat name (default) -#}
+{%- set name_format = '{friendly_name}' %}
+
+{#- Just the room name -#}
+{%- set name_format = '{area_name}' %}
+
+{#- Thermostat name with room (useful when multiple thermostats per room) -#}
+{%- set name_format = '{friendly_name} ({area_name})' %}
+
+{#- Room name with thermostat -#}
+{%- set name_format = '{area_name} - {friendly_name}' %}
+```
+
+## Battery sensor
+
+The template looks for a battery sensor for each thermostat. By default, it assumes the battery entity follows the pattern `sensor.<entity_slug>_battery`, where `<entity_slug>` is the part after `climate.` in the entity ID.
+
+If your integration names battery sensors differently, change the `battery_format` setting:
+
+```jinja2
+{#- Default pattern (works for most ZHA and Zigbee2MQTT setups) -#}
+{%- set battery_format = 'sensor.{entity_slug}_battery' %}
+
+{#- German entity names -#}
+{%- set battery_format = 'sensor.{entity_slug}_batterie' %}
+```
+
+If battery sensors are not found, the battery section is simply skipped — nothing breaks.
+
+## Comfort temperature
+
+The comfort button sets all thermostats to a specific temperature. Change it with the `comfort_temperature` setting:
+
+```jinja2
+{%- set comfort_temperature = 22 %}
+```
+
+The button label updates automatically (e.g. "Comfort 22°C" / "Komfort 22°C").
+
+To use Fahrenheit, change both `comfort_temperature` and `temp_unit`:
+
+```jinja2
+{%- set comfort_temperature = 72 %}
+{%- set temp_unit = '°F' %}
+```
+
+## Button visibility
+
+Each of the four action buttons can be shown or hidden independently. The setting affects both the global quick actions section and the per-floor sections.
+
+```jinja2
+{%- set show_off_button = true %}
+{%- set show_on_button = true %}
+{%- set show_auto_button = true %}
+{%- set show_comfort_button = true %}
+```
+
+To hide a button, set it to `false`. For example, to show only the off and comfort buttons:
+
+```jinja2
+{%- set show_off_button = true %}
+{%- set show_on_button = false %}
+{%- set show_auto_button = false %}
+{%- set show_comfort_button = true %}
+```
+
+## Battery threshold
+
+The battery warning triggers when the battery level drops below a threshold. Change it with `battery_low_threshold`:
+
+```jinja2
+{%- set battery_low_threshold = 30 %}
+```
+
+## Compatible thermostats
+
+This template was developed and tested with the [SONOFF TRVZB](https://sonoff.tech/en-us/products/sonoff-zigbee-thermostatic-radiator-valve) Zigbee thermostatic radiator valve (TRV). It should work with any Home Assistant climate entity, but there are a few things to watch out for with other brands:
+
+- **HVAC modes** — The template uses `heat`, `auto`, and `off` modes, plus a comfort preset (configurable via `comfort_temperature`). Some thermostats use different mode names (e.g. `heat_cool` instead of `auto`). Check your entity's supported modes in **Developer Tools** > **States**.
+- **Battery sensor naming** — Different integrations may name battery sensors differently. Adjust `battery_format` as described above.
+- **Temperature range** — Adjust `comfort_temperature` if your thermostats need a different default.
 
 Each floor section gets a background color from a preset palette. The colors are [Material Design 200-level](https://materialui.co/colors) pastels — light enough to keep text readable.
 
@@ -187,6 +288,14 @@ To change the colors, edit the `colors` list in the template:
 
 You can use any hex color. The template cycles through the list, so if you have more floors than colors, it wraps around.
 
+## Layout
+
+The dashboard uses a sections layout with a configurable number of columns. Change `max_columns` to adjust:
+
+```jinja2
+{%- set max_columns = 3 %}
+```
+
 ## Customizing the generated dashboard
 
 The generated YAML is a starting point. Open the dashboard's Raw configuration editor to customize:
@@ -194,8 +303,8 @@ The generated YAML is a starting point. Open the dashboard's Raw configuration e
 - **Section titles** — change `title:` in each section
 - **Display names** — change `name:` on each entity row
 - **Background colors** — change `color:` in each section
-- **Quick actions** — remove entities from button target lists, or exclude entire sections
-- **Comfort temperature** — change `temperature: 21` in the comfort buttons
+- **Quick actions** — use `show_*_button` settings to hide buttons, or remove entities from button target lists in the YAML
+- **Comfort temperature** — change `comfort_temperature` before generating, or edit `temperature:` in the comfort buttons
 
 ---
 
@@ -279,5 +388,11 @@ The generated YAML is a starting point. Open the dashboard's Raw configuration e
 
 **Display names look wrong:**
 
-- Entities probably don't have areas assigned
-- Edit the `name:` fields in the YAML to use simple room names
+- Adjust the `name_format` setting at the top of the template — see the Display names section above
+- If multiple thermostats are in the same room, use `{friendly_name}` or a combined format like `{friendly_name} ({area_name})`
+
+**Battery sensors not showing up:**
+
+- The template checks for a battery sensor per thermostat using the `battery_format` pattern
+- Verify the entity ID in **Developer Tools** > **States** — search for "battery" and check the naming pattern
+- Adjust `battery_format` to match your integration's naming convention
