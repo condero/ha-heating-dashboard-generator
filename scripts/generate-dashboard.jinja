@@ -4,10 +4,14 @@
    Paste into HA Developer Tools > Template.
    Copy the output into a dashboard's Raw configuration editor.
 
+   Config reference: https://github.com/condero/ha-heating-dashboard-generator
+    — see docs/install-guide.md
+   ================================================================== #}
+{#-
    Change `lang` below to match your language:
      'de' = German, 'en' = English
    Or add your own translations to the `i18n` dictionary.
-   ================================================================== #}
+#}
 {%- set lang = 'en' %}
 {#- name_format: how to label each thermostat. Available placeholders:
       {friendly_name} = thermostat's friendly name (e.g. "Heater 1")
@@ -18,14 +22,20 @@
       {entity_slug} = the part after 'climate.' in the entity ID (e.g. "trvzb_office")
       Examples: 'sensor.{entity_slug}_battery', 'sensor.{entity_slug}_batterie' -#}
 {%- set battery_format = 'sensor.{entity_slug}_battery' %}
+{#- Temperature for the comfort button (default: 21) -#}
 {%- set comfort_temperature = 21 %}
+{#- Temperature unit: '°C' or '°F' -#}
 {%- set temp_unit = '°C' %}
+{#- Show/hide action buttons: true or false -#}
 {%- set show_off_button = true %}
 {%- set show_on_button = true %}
 {%- set show_auto_button = true %}
 {%- set show_comfort_button = true %}
+{#- Battery low warning threshold in percent (default: 20) -#}
 {%- set battery_low_threshold = 20 %}
+{#- Dashboard columns: 1, 2, or 3 -#}
 {%- set max_columns = 2 %}
+{#- Floor order: false = top-to-bottom (default), true = bottom-to-top (ground floor first) -#}
 {%- set reverse_floor_order = false %}
 {%- set i18n = {
     'de': {
@@ -41,6 +51,14 @@
       'btn_comfort_action': comfort_temperature ~ temp_unit,
       'battery': 'Batterie',
       'battery_offline': 'offline',
+      'stats_generated': 'Erstellt',
+      'stats_version': 'Version',
+      'stats_entities': 'Anzahl Geräte',
+      'stats_heating': 'Heizend',
+      'stats_idle': 'Leerlauf',
+      'stats_off': 'Aus',
+      'stats_unavailable': 'Nicht verfügbar',
+      'stats_avg_temp': 'Durchschnittstemperatur',
     },
     'en': {
       'dashboard_title': 'Heating Control',
@@ -55,12 +73,24 @@
       'btn_comfort_action': comfort_temperature ~ temp_unit,
       'battery': 'Battery',
       'battery_offline': 'offline',
+      'stats_generated': 'Generated',
+      'stats_version': 'Version',
+      'stats_entities': 'Number of entities',
+      'stats_heating': 'Heating',
+      'stats_idle': 'Idle',
+      'stats_off': 'Off',
+      'stats_unavailable': 'Unavailable',
+      'stats_avg_temp': 'Average temperature',
     },
   } %}
 {%- set t = i18n.get(lang, i18n['en']) %}
+{%- set version = '1.0' %}
 {%- set JO = '{%' %}
 {%- set JC = '%}' %}
 {%- set JOs = '{%-' %}
+{%- set bat_parts = battery_format.split('{entity_slug}') %}
+{%- set bat_prefix = bat_parts[0] %}
+{%- set bat_suffix = bat_parts[1] | default('', true) %}
 {%- set colors = ['#FF8A65', '#90CAF9', '#CE93D8', '#C5E1A5', '#80DEEA', '#FFE082', '#F48FB1', '#80CBC4', '#FFAB91', '#9FA8DA', '#E6EE9C', '#B39DDB', '#FFF176', '#BCAAA4', '#81D4FA', '#FFCC80', '#A5D6A7', '#B0BEC5'] %}
 {%- set ents = states.climate | sort(attribute='entity_id') %}
 {%- set all_floors = floors() %}
@@ -95,6 +125,35 @@ views:
         cards:
           - type: entities
             title: "{{ t.all_sections }}"
+            card_mod:
+              style: |
+{{ '                ' ~ JO ~ ' set ents = states.climate | list ' ~ JC }}
+{{ '                ' ~ JO ~ ' set ns = namespace(heating=0, idle=0, off=0, unavail=0) ' ~ JC }}
+{{ '                ' ~ JO ~ ' for e in ents ' ~ JC }}
+{{ '                  ' ~ JO ~ " set bat = '" ~ bat_prefix ~ "' ~ e.entity_id.split('.')[1] ~ '" ~ bat_suffix ~ "' " ~ JC }}
+{{ '                  ' ~ JO ~ " if e.state == 'unavailable' or e.state == 'unknown' or (state_attr(bat, 'friendly_name') and states(bat) == 'unknown') " ~ JC }}
+{{ '                    ' ~ JO ~ ' set ns.unavail = ns.unavail + 1 ' ~ JC }}
+{{ '                  ' ~ JO ~ " elif e.state == 'off' " ~ JC }}
+{{ '                    ' ~ JO ~ ' set ns.off = ns.off + 1 ' ~ JC }}
+{{ '                  ' ~ JO ~ " elif e.attributes.get('hvac_action') == 'heating' " ~ JC }}
+{{ '                    ' ~ JO ~ ' set ns.heating = ns.heating + 1 ' ~ JC }}
+{{ '                  ' ~ JO ~ ' else ' ~ JC }}
+{{ '                    ' ~ JO ~ ' set ns.idle = ns.idle + 1 ' ~ JC }}
+{{ '                  ' ~ JO ~ ' endif ' ~ JC }}
+{{ '                ' ~ JO ~ ' endfor ' ~ JC }}
+{{ '                ' ~ JO ~ " set temps = ents | map(attribute='attributes.current_temperature') | select('number') | list " ~ JC }}
+{{ '                ' ~ JOs ~ " set active = ents | rejectattr('state', 'eq', 'off') | rejectattr('state', 'eq', 'unavailable') | rejectattr('state', 'eq', 'unknown') | list " ~ JC }}
+{{ '                ' ~ JOs ~ " set set_temps = active | map(attribute='attributes.temperature') | select('number') | list " ~ JC }}
+                .card-content::after {
+                  content: "{{ t.stats_entities }}: {{ '{{' }} ents | length {{ '}}' }} ({{ t.stats_heating }}: {{ '{{' }} ns.heating {{ '}}' }} | {{ t.stats_idle }}: {{ '{{' }} ns.idle {{ '}}' }} | {{ t.stats_off }}: {{ '{{' }} ns.off {{ '}}' }} | {{ t.stats_unavailable }}: {{ '{{' }} ns.unavail {{ '}}' }})\A {{ t.stats_avg_temp }}: {{ JO }} if temps | length > 0 {{ JC }} {{ '{{' }} (temps | sum / temps | length) | round(1) {{ '}}' }}{{ temp_unit }} {{ JO }} else {{ JC }} — {{ JO }} endif {{ JC }} / {{ JO }} if set_temps | length > 0 {{ JC }} {{ '{{' }} (set_temps | sum / set_temps | length) | round(1) {{ '}}' }}{{ temp_unit }} {{ JO }} else {{ JC }} — {{ JO }} endif {{ JC }}\A {{ t.stats_version }}: {{ version }} | {{ t.stats_generated }}: {{ now().strftime('%Y-%m-%d %H:%M') }}";
+                  white-space: pre-wrap;
+                  display: block;
+                  padding: 8px 0px 8px 16px;
+                  font-size: 14px;
+                  opacity: 0.7;
+                  border-top: 1px solid var(--divider-color);
+                  margin-top: 8px;
+                }
             show_header_toggle: false
             state_color: true
             entities:
@@ -102,6 +161,9 @@ views:
               - type: button
                 name: "{{ t.btn_off_name }}"
                 action_name: "{{ t.btn_off_action }}"
+                card_mod:
+                  style: |
+                    .flex { margin-left: 0 !important; }
                 tap_action:
                   action: call-service
                   service: climate.turn_off
@@ -115,6 +177,9 @@ views:
               - type: button
                 name: "{{ t.btn_on_name }}"
                 action_name: "{{ t.btn_on_action }}"
+                card_mod:
+                  style: |
+                    .flex { margin-left: 0 !important; }
                 tap_action:
                   action: call-service
                   service: climate.set_hvac_mode
@@ -130,6 +195,9 @@ views:
               - type: button
                 name: "{{ t.btn_auto_name }}"
                 action_name: "{{ t.btn_auto_action }}"
+                card_mod:
+                  style: |
+                    .flex { margin-left: 0 !important; }
                 tap_action:
                   action: call-service
                   service: climate.set_hvac_mode
@@ -145,6 +213,9 @@ views:
               - type: button
                 name: "{{ t.btn_comfort_name }}"
                 action_name: "{{ t.btn_comfort_action }}"
+                card_mod:
+                  style: |
+                    .flex { margin-left: 0 !important; }
                 tap_action:
                   action: call-service
                   service: climate.set_temperature
@@ -167,6 +238,11 @@ views:
     {%- set ns2.fents = ns2.fents + [e] %}
   {%- endif %}
 {%- endfor %}
+{%- set ent_list = namespace(refs=[]) %}
+{%- for e in ns2.fents %}
+  {%- set ent_list.refs = ent_list.refs + ["states['" ~ e.entity_id ~ "']"] %}
+{%- endfor %}
+{%- set ent_refs = ent_list.refs | join(', ') %}
       - id: {{ fl }}
         background:
           color: "{{ color }}"
@@ -174,6 +250,18 @@ views:
         cards:
           - type: entities
             title: "{{ fl_name }}"
+            card_mod:
+              style: |
+{{ '                ' ~ JO ~ ' set ents = [' ~ ent_refs ~ '] ' ~ JC }}
+{{ '                ' ~ JO ~ " set temps = ents | map(attribute='attributes.current_temperature') | select('number') | list " ~ JC }}
+{{ '                ' ~ JOs ~ " set active = ents | rejectattr('state', 'eq', 'off') | rejectattr('state', 'eq', 'unavailable') | rejectattr('state', 'eq', 'unknown') | list " ~ JC }}
+{{ '                ' ~ JOs ~ " set set_temps = active | map(attribute='attributes.temperature') | select('number') | list " ~ JC }}
+                .card-header::after {
+                  content: "⌀ {{ JO }} if temps {{ JC }} {{ '{{' }} (temps | sum / temps | length) | round(1) {{ '}}' }}{{ temp_unit }}{{ JO }} else {{ JC }} — {{ JO }} endif {{ JC }} / {{ JO }} if set_temps {{ JC }} {{ '{{' }} (set_temps | sum / set_temps | length) | round(1) {{ '}}' }}{{ temp_unit }}{{ JO }} else {{ JC }} — {{ JO }} endif {{ JC }}";
+                  float: right;
+                  font-size: 0.9em;
+                  opacity: 0.7;
+                }
             show_header_toggle: false
             state_color: true
             entities:
@@ -181,6 +269,9 @@ views:
               - type: button
                 name: "{{ t.btn_off_name }}"
                 action_name: "{{ t.btn_off_action }}"
+                card_mod:
+                  style: |
+                    .flex { margin-left: 0 !important; }
                 tap_action:
                   action: call-service
                   service: climate.turn_off
@@ -194,6 +285,9 @@ views:
               - type: button
                 name: "{{ t.btn_on_name }}"
                 action_name: "{{ t.btn_on_action }}"
+                card_mod:
+                  style: |
+                    .flex { margin-left: 0 !important; }
                 tap_action:
                   action: call-service
                   service: climate.set_hvac_mode
@@ -209,6 +303,9 @@ views:
               - type: button
                 name: "{{ t.btn_auto_name }}"
                 action_name: "{{ t.btn_auto_action }}"
+                card_mod:
+                  style: |
+                    .flex { margin-left: 0 !important; }
                 tap_action:
                   action: call-service
                   service: climate.set_hvac_mode
@@ -224,6 +321,9 @@ views:
               - type: button
                 name: "{{ t.btn_comfort_name }}"
                 action_name: "{{ t.btn_comfort_action }}"
+                card_mod:
+                  style: |
+                    .flex { margin-left: 0 !important; }
                 tap_action:
                   action: call-service
                   service: climate.set_temperature

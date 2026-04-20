@@ -91,12 +91,16 @@ If you already use [HACS](https://hacs.xyz/), this is the simplest option.
 
 1. Open **Developer Tools** > **Template**
 2. Paste the entire content of `scripts/generate-dashboard.jinja` — the output appears automatically
-3. Select all output and copy it
+3. Copy the output. You can use Ctrl+A / Cmd+A to select everything, but you must then clean it up:
+   - **Delete everything before `views:`** — this is the template source code, not output
+   - **Delete everything after the last closing brace `}`** — HA appends metadata like "Result type: string" and entity subscriptions, which is not valid YAML. The output ends with a `}` on its own line (the closing brace of the last thermostat's card-mod CSS rule).
+
+   Alternatively, click before `views:` in the output area, scroll to the end, and Shift+click after the last line to select only the output.
 
 The template auto-detects:
 
 - All climate entities and their battery sensors
-- Floors (via `floor_id()`) — groups thermostats by floor
+- Floors (via `floor_id()`) — groups thermostats by floor, shows live average current/set temperature per floor
 - Background colors — cycles through a preset palette
 
 If you don't have floors defined, all thermostats will appear under a single "no_floor" group. You can either define floors in HA or edit the generated YAML to rearrange them.
@@ -128,8 +132,9 @@ If you don't have floors defined, all thermostats will appear under a single "no
 3. Select **"Raw configuration editor"**
 4. Delete everything in the editor
 5. Paste the template output (starts with `views:`)
-6. Click **"Save"**
-7. Close the raw editor, then click **Done**
+6. Verify there is no template source code before `views:` and no HA metadata (e.g. "Result type: string") after the YAML
+7. Click **"Save"**
+8. Close the raw editor, then click **Done**
 
 The dashboard renders immediately with the correct icon colors.
 
@@ -177,6 +182,14 @@ Add a new entry to the `i18n` dictionary in the template. Copy an existing block
   'btn_comfort_action': comfort_temperature ~ temp_unit,
   'battery': 'Batterie',
   'battery_offline': 'hors ligne',
+  'stats_generated': 'Généré',
+  'stats_version': 'Version',
+  'stats_entities': 'Nombre d\'appareils',
+  'stats_heating': 'Chauffage',
+  'stats_idle': 'Inactif',
+  'stats_off': 'Éteint',
+  'stats_unavailable': 'Indisponible',
+  'stats_avg_temp': 'Température moyenne',
 },
 ```
 
@@ -295,6 +308,21 @@ The dashboard uses a sections layout with a configurable number of columns. Chan
 ```jinja2
 {%- set max_columns = 3 %}
 ```
+
+## Statistics & Info
+
+The "All floors" section shows live statistics below the action buttons:
+
+- **Version** — the template version used to generate this dashboard (compare with the version on GitHub to check for updates)
+- **Generated** — timestamp when the dashboard YAML was generated
+- **Entity counts** — live counts updated every time the dashboard loads: how many are heating, idle, off, or unavailable
+- **Average temperature** — live average current and set temperature across all climate entities (excludes turned-off devices for the set temperature average)
+- **Version** — the template version used to generate this dashboard (compare with the version on GitHub to check for updates)
+- **Generated** — timestamp when the dashboard YAML was generated
+
+Each floor section shows a live average current / set temperature in the card header (e.g. "⌀ 21.3 / 22.0°C") updated every time the dashboard loads.
+
+The statistics update automatically when you open or refresh the dashboard — they are not baked into the YAML. To remove the stats, delete the divider and markdown rows below the action buttons in the "All floors" section.
 
 ## Customizing the generated dashboard
 
