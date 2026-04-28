@@ -31,16 +31,22 @@
 {%- set show_on_button = true %}
 {%- set show_auto_button = true %}
 {%- set show_comfort_button = true %}
-{#- Battery low warning threshold in percent (default: 20) -#}
+{#- Battery low warning threshold in percent (default: 20, set to 101 to show all) -#}
 {%- set battery_low_threshold = 20 %}
 {#- Dashboard columns: 1, 2, or 3 -#}
 {%- set max_columns = 2 %}
+{#- Grouping: 'floor' = sections by floor, cards by room (good for many floors)
+              'area' = sections by room, one card per room (good for one floor with many rooms) -#}
+{%- set group_by = 'floor' %}
 {#- Floor order: false = top-to-bottom (default), true = bottom-to-top (ground floor first) -#}
 {%- set reverse_floor_order = false %}
 {%- set i18n = {
     'de': {
       'dashboard_title': 'Heizungssteuerung',
       'all_sections': 'Alle Stockwerke',
+      'all_areas': 'Alle Räume',
+      'no_area': 'Kein Bereich',
+      'no_floor': 'Keine Etage',
       'btn_off_name': 'Alle Heizkörper ausschalten',
       'btn_off_action': 'Aus',
       'btn_on_name': 'Letzter Heizwert wiederherstellen',
@@ -59,10 +65,17 @@
       'stats_off': 'Aus',
       'stats_unavailable': 'Nicht verfügbar',
       'stats_avg_temp': 'Durchschnittstemperatur',
+      'stats_ok': 'OK',
+      'stats_low': 'Niedrig',
+      'stats_offline': 'Offline',
+      'all_batteries_ok': 'Alle Batterien über ' ~ battery_low_threshold ~ '%',
     },
     'en': {
       'dashboard_title': 'Heating Control',
       'all_sections': 'All floors',
+      'all_areas': 'All rooms',
+      'no_area': 'No area',
+      'no_floor': 'No floor',
       'btn_off_name': 'Turn off all heaters',
       'btn_off_action': 'Off',
       'btn_on_name': 'Restore last heating value',
@@ -81,10 +94,14 @@
       'stats_off': 'Off',
       'stats_unavailable': 'Unavailable',
       'stats_avg_temp': 'Average temperature',
+      'stats_ok': 'OK',
+      'stats_low': 'Low',
+      'stats_offline': 'Offline',
+      'all_batteries_ok': 'All batteries above ' ~ battery_low_threshold ~ '%',
     },
   } %}
 {%- set t = i18n.get(lang, i18n['en']) %}
-{%- set version = '1.0' %}
+{%- set version = '1.1' %}
 {%- set JO = '{%' %}
 {%- set JC = '%}' %}
 {%- set JOs = '{%-' %}
@@ -93,26 +110,50 @@
 {%- set bat_suffix = bat_parts[1] | default('', true) %}
 {%- set colors = ['#FF8A65', '#90CAF9', '#CE93D8', '#C5E1A5', '#80DEEA', '#FFE082', '#F48FB1', '#80CBC4', '#FFAB91', '#9FA8DA', '#E6EE9C', '#B39DDB', '#FFF176', '#BCAAA4', '#81D4FA', '#FFCC80', '#A5D6A7', '#B0BEC5'] %}
 {%- set ents = states.climate | sort(attribute='entity_id') %}
-{%- set all_floors = floors() %}
-{%- if reverse_floor_order %}
-  {%- set all_floors = all_floors | reverse | list %}
-{%- endif %}
-{%- set ns = namespace(floors=[]) %}
-{%- for fl in all_floors %}
-  {%- for e in ents %}
-    {%- if floor_id(e.entity_id) == fl %}
-      {%- if fl not in ns.floors %}
-        {%- set ns.floors = ns.floors + [fl] %}
-      {%- endif %}
-    {%- endif %}
-  {%- endfor %}
-{%- endfor %}
+{%- set all_sections_title = t.all_sections if group_by == 'floor' else t.all_areas %}
+{%- set all_bat_refs = namespace(refs=[]) %}
 {%- for e in ents %}
-  {%- set fid = floor_id(e.entity_id) | default('no_floor', true) %}
-  {%- if fid == 'no_floor' and fid not in ns.floors %}
-    {%- set ns.floors = ns.floors + [fid] %}
+  {%- set bat = battery_format | replace('{entity_slug}', e.entity_id.split('.')[1]) %}
+  {%- if state_attr(bat, 'friendly_name') %}
+    {%- set all_bat_refs.refs = all_bat_refs.refs + ["states['" ~ bat ~ "']"] %}
   {%- endif %}
 {%- endfor %}
+{%- set all_bat_refs_str = all_bat_refs.refs | join(', ') %}
+{#- Collect groups (floors or areas) that have climate entities -#}
+{%- set ns_groups = namespace(keys=[]) %}
+{%- if group_by == 'floor' %}
+  {%- set all_floors = floors() %}
+  {%- if reverse_floor_order %}
+    {%- set all_floors = all_floors | reverse | list %}
+  {%- endif %}
+  {%- for fl in all_floors %}
+    {%- for e in ents %}
+      {%- if floor_id(e.entity_id) == fl %}
+        {%- if fl not in ns_groups.keys %}
+          {%- set ns_groups.keys = ns_groups.keys + [fl] %}
+        {%- endif %}
+      {%- endif %}
+    {%- endfor %}
+  {%- endfor %}
+  {%- for e in ents %}
+    {%- set fid = floor_id(e.entity_id) | default('no_floor', true) %}
+    {%- if fid == 'no_floor' and fid not in ns_groups.keys %}
+      {%- set ns_groups.keys = ns_groups.keys + [fid] %}
+    {%- endif %}
+  {%- endfor %}
+{%- else %}
+  {%- for e in ents %}
+    {%- set ar = area_name(e.entity_id) | default('', true) %}
+    {%- if ar not in ns_groups.keys %}
+      {%- set ns_groups.keys = ns_groups.keys + [ar] %}
+    {%- endif %}
+  {%- endfor %}
+  {%- set sorted = ns_groups.keys | reject('eq', '') | list | sort %}
+  {%- if '' in ns_groups.keys %}
+    {%- set sorted = sorted + [''] %}
+  {%- endif %}
+  {%- set ns_groups.keys = sorted %}
+{%- endif %}
 views:
   - type: sections
     title: {{ t.dashboard_title }}
@@ -124,7 +165,7 @@ views:
           opacity: 100
         cards:
           - type: entities
-            title: "{{ t.all_sections }}"
+            title: "{{ all_sections_title }}"
             card_mod:
               style: |
 {{ '                ' ~ JO ~ ' set ents = states.climate | list ' ~ JC }}
@@ -144,8 +185,21 @@ views:
 {{ '                ' ~ JO ~ " set temps = ents | map(attribute='attributes.current_temperature') | select('number') | list " ~ JC }}
 {{ '                ' ~ JOs ~ " set active = ents | rejectattr('state', 'eq', 'off') | rejectattr('state', 'eq', 'unavailable') | rejectattr('state', 'eq', 'unknown') | list " ~ JC }}
 {{ '                ' ~ JOs ~ " set set_temps = active | map(attribute='attributes.temperature') | select('number') | list " ~ JC }}
+{%- if all_bat_refs_str %}
+{{ '                ' ~ JO ~ ' set bats = [' ~ all_bat_refs_str ~ '] ' ~ JC }}
+{{ '                ' ~ JO ~ ' set bat_ns = namespace(above=0, below=0, offline=0) ' ~ JC }}
+{{ '                ' ~ JO ~ ' for e in bats ' ~ JC }}
+{{ '                  ' ~ JO ~ " if e.state == 'unknown' or e.state == 'unavailable' " ~ JC }}
+{{ '                    ' ~ JO ~ ' set bat_ns.offline = bat_ns.offline + 1 ' ~ JC }}
+{{ '                  ' ~ JO ~ " elif e.state | int(-1) < " ~ battery_low_threshold ~ " " ~ JC }}
+{{ '                    ' ~ JO ~ ' set bat_ns.below = bat_ns.below + 1 ' ~ JC }}
+{{ '                  ' ~ JO ~ ' else ' ~ JC }}
+{{ '                    ' ~ JO ~ ' set bat_ns.above = bat_ns.above + 1 ' ~ JC }}
+{{ '                  ' ~ JO ~ ' endif ' ~ JC }}
+{{ '                ' ~ JO ~ ' endfor ' ~ JC }}
+{%- endif %}
                 .card-content::after {
-                  content: "{{ t.stats_entities }}: {{ '{{' }} ents | length {{ '}}' }} ({{ t.stats_heating }}: {{ '{{' }} ns.heating {{ '}}' }} | {{ t.stats_idle }}: {{ '{{' }} ns.idle {{ '}}' }} | {{ t.stats_off }}: {{ '{{' }} ns.off {{ '}}' }} | {{ t.stats_unavailable }}: {{ '{{' }} ns.unavail {{ '}}' }})\A {{ t.stats_avg_temp }}: {{ JO }} if temps | length > 0 {{ JC }} {{ '{{' }} (temps | sum / temps | length) | round(1) {{ '}}' }}{{ temp_unit }} {{ JO }} else {{ JC }} — {{ JO }} endif {{ JC }} / {{ JO }} if set_temps | length > 0 {{ JC }} {{ '{{' }} (set_temps | sum / set_temps | length) | round(1) {{ '}}' }}{{ temp_unit }} {{ JO }} else {{ JC }} — {{ JO }} endif {{ JC }}\A {{ t.stats_version }}: {{ version }} | {{ t.stats_generated }}: {{ now().strftime('%Y-%m-%d %H:%M') }}";
+                  content: "{{ t.stats_entities }}: {{ '{{' }} ents | length {{ '}}' }} ({{ t.stats_heating }}: {{ '{{' }} ns.heating {{ '}}' }} | {{ t.stats_idle }}: {{ '{{' }} ns.idle {{ '}}' }} | {{ t.stats_off }}: {{ '{{' }} ns.off {{ '}}' }} | {{ t.stats_unavailable }}: {{ '{{' }} ns.unavail {{ '}}' }})\A {{ t.stats_avg_temp }}: {{ JO }} if temps | length > 0 {{ JC }} {{ '{{' }} (temps | sum / temps | length) | round(1) {{ '}}' }}{{ temp_unit }} {{ JO }} else {{ JC }} — {{ JO }} endif {{ JC }} / {{ JO }} if set_temps | length > 0 {{ JC }} {{ '{{' }} (set_temps | sum / set_temps | length) | round(1) {{ '}}' }}{{ temp_unit }} {{ JO }} else {{ JC }} — {{ JO }} endif {{ JC }}{%- if all_bat_refs_str %}\A {{ t.battery }}: {{ t.stats_ok }}: {{ '{{' }} bat_ns.above {{ '}}' }} | {{ t.stats_low }}: {{ '{{' }} bat_ns.below {{ '}}' }} | {{ t.stats_offline }}: {{ '{{' }} bat_ns.offline {{ '}}' }}{%- endif %}\A {{ t.stats_version }}: {{ version }} | {{ t.stats_generated }}: {{ now().strftime('%Y-%m-%d %H:%M') }}";
                   white-space: pre-wrap;
                   display: block;
                   padding: 8px 0px 8px 16px;
@@ -228,36 +282,64 @@ views:
                       - {{ e.entity_id }}
 {%- endfor %}
 {%- endif %}
-{%- for fl_idx in range(ns.floors | length) %}
-{%- set fl = ns.floors[fl_idx] %}
-{%- set color = colors[((fl_idx + 1) % (colors | length))] %}
-{%- set fl_name = floor_name(fl) | default(fl | replace('_', ' ') | title, true) %}
-{%- set ns2 = namespace(fents=[]) %}
+{%- for g_idx in range(ns_groups.keys | length) %}
+{%- set g_key = ns_groups.keys[g_idx] %}
+{%- set color = colors[((g_idx + 1) % (colors | length))] %}
+{%- if group_by == 'floor' %}
+  {%- set g_name = floor_name(g_key) | default(g_key | replace('_', ' ') | title, true) %}
+  {%- set g_id = g_key %}
+{%- else %}
+  {%- set g_name = g_key if g_key else t.no_area %}
+  {%- set g_id = (g_key | lower | replace(' ', '_')) if g_key else 'no_area' %}
+{%- endif %}
+{%- set ns_g = namespace(ents=[]) %}
 {%- for e in ents %}
-  {%- if floor_id(e.entity_id) | default('no_floor', true) == fl %}
-    {%- set ns2.fents = ns2.fents + [e] %}
+  {%- if group_by == 'floor' %}
+    {%- set e_key = floor_id(e.entity_id) | default('no_floor', true) %}
+  {%- else %}
+    {%- set e_key = area_name(e.entity_id) | default('', true) %}
+  {%- endif %}
+  {%- if e_key == g_key %}
+    {%- set ns_g.ents = ns_g.ents + [e] %}
   {%- endif %}
 {%- endfor %}
 {%- set ent_list = namespace(refs=[]) %}
-{%- for e in ns2.fents %}
+{%- for e in ns_g.ents %}
   {%- set ent_list.refs = ent_list.refs + ["states['" ~ e.entity_id ~ "']"] %}
 {%- endfor %}
 {%- set ent_refs = ent_list.refs | join(', ') %}
-      - id: {{ fl }}
+{%- set bat_ref_list = namespace(refs=[]) %}
+{%- for e in ns_g.ents %}
+  {%- set bat = battery_format | replace('{entity_slug}', e.entity_id.split('.')[1]) %}
+  {%- if state_attr(bat, 'friendly_name') %}
+    {%- set bat_ref_list.refs = bat_ref_list.refs + ["states['" ~ bat ~ "']"] %}
+  {%- endif %}
+{%- endfor %}
+{%- set group_bat_refs = bat_ref_list.refs | join(', ') %}
+      - id: {{ g_id }}
         background:
           color: "{{ color }}"
           opacity: 100
         cards:
           - type: entities
-            title: "{{ fl_name }}"
+            title: "{{ g_name }}"
             card_mod:
               style: |
 {{ '                ' ~ JO ~ ' set ents = [' ~ ent_refs ~ '] ' ~ JC }}
 {{ '                ' ~ JO ~ " set temps = ents | map(attribute='attributes.current_temperature') | select('number') | list " ~ JC }}
 {{ '                ' ~ JOs ~ " set active = ents | rejectattr('state', 'eq', 'off') | rejectattr('state', 'eq', 'unavailable') | rejectattr('state', 'eq', 'unknown') | list " ~ JC }}
 {{ '                ' ~ JOs ~ " set set_temps = active | map(attribute='attributes.temperature') | select('number') | list " ~ JC }}
+{%- if group_bat_refs %}
+{{ '                ' ~ JO ~ ' set bats = [' ~ group_bat_refs ~ '] ' ~ JC }}
+{{ '                ' ~ JO ~ ' set bat_ns = namespace(problems=0) ' ~ JC }}
+{{ '                ' ~ JO ~ ' for e in bats ' ~ JC }}
+{{ '                  ' ~ JO ~ " if e.state == 'unknown' or e.state == 'unavailable' or e.state | int(-1) < " ~ battery_low_threshold ~ " " ~ JC }}
+{{ '                    ' ~ JO ~ ' set bat_ns.problems = bat_ns.problems + 1 ' ~ JC }}
+{{ '                  ' ~ JO ~ ' endif ' ~ JC }}
+{{ '                ' ~ JO ~ ' endfor ' ~ JC }}
+{%- endif %}
                 .card-header::after {
-                  content: "⌀ {{ JO }} if temps {{ JC }} {{ '{{' }} (temps | sum / temps | length) | round(1) {{ '}}' }}{{ temp_unit }}{{ JO }} else {{ JC }} — {{ JO }} endif {{ JC }} / {{ JO }} if set_temps {{ JC }} {{ '{{' }} (set_temps | sum / set_temps | length) | round(1) {{ '}}' }}{{ temp_unit }}{{ JO }} else {{ JC }} — {{ JO }} endif {{ JC }}";
+                  content: "⌀ {{ JO }} if temps {{ JC }} {{ '{{' }} (temps | sum / temps | length) | round(1) {{ '}}' }}{{ temp_unit }}{{ JO }} else {{ JC }} — {{ JO }} endif {{ JC }} / {{ JO }} if set_temps {{ JC }} {{ '{{' }} (set_temps | sum / set_temps | length) | round(1) {{ '}}' }}{{ temp_unit }}{{ JO }} else {{ JC }} — {{ JO }} endif {{ JC }}{%- if group_bat_refs %} | 🔋 {{ JO }} if bat_ns.problems == 0 {{ JC }} OK {{ JO }} else {{ JC }} {{ '{{' }} bat_ns.problems {{ '}}' }} {{ JO }} endif {{ JC }}{%- endif %}";
                   float: right;
                   font-size: 0.9em;
                   opacity: 0.7;
@@ -277,7 +359,7 @@ views:
                   service: climate.turn_off
                   target:
                     entity_id:
-{%- for e in ns2.fents %}
+{%- for e in ns_g.ents %}
                       - {{ e.entity_id }}
 {%- endfor %}
 {%- endif %}
@@ -295,7 +377,7 @@ views:
                     hvac_mode: heat
                   target:
                     entity_id:
-{%- for e in ns2.fents %}
+{%- for e in ns_g.ents %}
                       - {{ e.entity_id }}
 {%- endfor %}
 {%- endif %}
@@ -313,7 +395,7 @@ views:
                     hvac_mode: auto
                   target:
                     entity_id:
-{%- for e in ns2.fents %}
+{%- for e in ns_g.ents %}
                       - {{ e.entity_id }}
 {%- endfor %}
 {%- endif %}
@@ -332,12 +414,12 @@ views:
                     hvac_mode: heat
                   target:
                     entity_id:
-{%- for e in ns2.fents %}
+{%- for e in ns_g.ents %}
                       - {{ e.entity_id }}
 {%- endfor %}
 {%- endif %}
               - type: divider
-{%- for e in ns2.fents %}
+{%- for e in ns_g.ents %}
 {%- set bat = battery_format | replace('{entity_slug}', e.entity_id.split('.')[1]) %}
 {%- set dname = name_format | replace('{friendly_name}', e.attributes.get('friendly_name', '')) | replace('{area_name}', area_name(e.entity_id) | default('', true)) %}
 {%- if state_attr(bat, 'friendly_name') %}
@@ -364,7 +446,37 @@ views:
                     :host { --state-icon-color: #F44336; }
 {%- endif %}
 {%- endfor %}
-{%- for e in ns2.fents %}
+{%- if group_bat_refs %}
+{%- set first_bat_entity = namespace(entity='') %}
+{%- for e in ns_g.ents %}
+  {%- set bat = battery_format | replace('{entity_slug}', e.entity_id.split('.')[1]) %}
+  {%- if state_attr(bat, 'friendly_name') and not first_bat_entity.entity %}
+    {%- set first_bat_entity.entity = bat %}
+  {%- endif %}
+{%- endfor %}
+{%- if first_bat_entity.entity %}
+              - type: conditional
+                conditions:
+{%- for e in ns_g.ents %}
+  {%- set bat = battery_format | replace('{entity_slug}', e.entity_id.split('.')[1]) %}
+  {%- if state_attr(bat, 'friendly_name') %}
+                  - condition: numeric_state
+                    entity: {{ bat }}
+                    above: {{ battery_low_threshold - 1 }}
+  {%- endif %}
+{%- endfor %}
+                row:
+                  entity: {{ first_bat_entity.entity }}
+                  name: "{{ t.all_batteries_ok }}"
+                  card_mod:
+                    style: |
+                      :host { opacity: 0.7; font-style: italic; }
+                      state-badge { display: none; }
+                      .value { display: none; }
+{%- endif %}
+              - type: divider
+{%- endif %}
+{%- for e in ns_g.ents %}
 {%- set dname = name_format | replace('{friendly_name}', e.attributes.get('friendly_name', '')) | replace('{area_name}', area_name(e.entity_id) | default('', true)) %}
               - entity: {{ e.entity_id }}
                 name: "{{ dname }}"
