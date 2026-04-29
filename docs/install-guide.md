@@ -301,6 +301,25 @@ To change the colors, edit the `colors` list in the template:
 
 You can use any hex color. The template cycles through the list, so if you have more floors than colors, it wraps around.
 
+## Grouping
+
+By default, thermostats are grouped by floor (`group_by = 'floor'`). Each floor gets its own section with action buttons and a live average temperature in the header.
+
+If you have a single floor with many rooms, you can group by area instead:
+
+```jinja2
+{%- set group_by = 'area' %}
+```
+
+This creates one section per room (area), each with its own action buttons and stats.
+
+| Mode | Sections | Best for |
+|------|----------|----------|
+| `floor` | One section per floor, cards by room | Multiple floors |
+| `area` | One section per room | Single floor with many rooms |
+
+Thermostats without an assigned area appear under a "No area" section. Thermostats without a floor appear under a "No floor" section.
+
 ## Layout
 
 The dashboard uses a sections layout with a configurable number of columns. Change `max_columns` to adjust:
@@ -313,10 +332,9 @@ The dashboard uses a sections layout with a configurable number of columns. Chan
 
 The "All floors" section shows live statistics below the action buttons:
 
-- **Version** — the template version used to generate this dashboard (compare with the version on GitHub to check for updates)
-- **Generated** — timestamp when the dashboard YAML was generated
 - **Entity counts** — live counts updated every time the dashboard loads: how many are heating, idle, off, or unavailable
 - **Average temperature** — live average current and set temperature across all climate entities (excludes turned-off devices for the set temperature average)
+- **Battery** — live counts of batteries OK, low, and offline
 - **Version** — the template version used to generate this dashboard (compare with the version on GitHub to check for updates)
 - **Generated** — timestamp when the dashboard YAML was generated
 

@@ -9,7 +9,7 @@ A Home Assistant template that generates a complete heating control dashboard. N
 5. **Settings** > **Dashboards** > **Add Dashboard** > name it > **Create**
 6. Open the dashboard > **Edit** > **three-dot menu** > **Raw configuration editor** > paste > **Save** > close editor > **Done**
 
-Done. See the [install guide](docs/install-guide.md) for card-mod options, troubleshooting, and customization (language, display names, battery sensors, colors).
+Done. See the [install guide](docs/install-guide.md) for card-mod options, troubleshooting, and customization (language, display names, battery sensors, grouping, colors).
 
 ## Requirements
 
