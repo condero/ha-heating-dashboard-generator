@@ -48,13 +48,13 @@
       'no_area': 'Kein Bereich',
       'no_floor': 'Keine Etage',
       'btn_off_name': 'Alle Heizkörper ausschalten',
-      'btn_off_action': 'Aus',
+      'btn_off_action': 'Aus 	💤',
       'btn_on_name': 'Letzter Heizwert wiederherstellen',
-      'btn_on_action': 'An',
+      'btn_on_action': 'An ♨️',
       'btn_auto_name': 'Auto-Modus (Zeitplan)',
-      'btn_auto_action': 'Auto',
+      'btn_auto_action': 'Auto ⏰',
       'btn_comfort_name': 'Komfort ' ~ comfort_temperature ~ temp_unit,
-      'btn_comfort_action': comfort_temperature ~ temp_unit,
+      'btn_comfort_action': comfort_temperature ~ temp_unit ~ ' ☀️',
       'battery': 'Batterie',
       'battery_offline': 'offline',
       'stats_generated': 'Erstellt',
@@ -77,13 +77,13 @@
       'no_area': 'No area',
       'no_floor': 'No floor',
       'btn_off_name': 'Turn off all heaters',
-      'btn_off_action': 'Off',
+      'btn_off_action': 'Off 💤',
       'btn_on_name': 'Restore last heating value',
-      'btn_on_action': 'On',
+      'btn_on_action': 'On ♨️',
       'btn_auto_name': 'Auto mode (schedule)',
-      'btn_auto_action': 'Auto',
+      'btn_auto_action': 'Auto ⏰',
       'btn_comfort_name': 'Comfort ' ~ comfort_temperature ~ temp_unit,
-      'btn_comfort_action': comfort_temperature ~ temp_unit,
+      'btn_comfort_action': comfort_temperature ~ temp_unit ~ ' ☀️',
       'battery': 'Battery',
       'battery_offline': 'offline',
       'stats_generated': 'Generated',
@@ -101,7 +101,7 @@
     },
   } %}
 {%- set t = i18n.get(lang, i18n['en']) %}
-{%- set version = '1.1' %}
+{%- set version = '1.2' %}
 {%- set JO = '{%' %}
 {%- set JC = '%}' %}
 {%- set JOs = '{%-' %}
@@ -218,6 +218,23 @@ views:
                 card_mod:
                   style: |
                     .flex { margin-left: 0 !important; }
+                    ha-button {
+                      transition: transform 0.8s ease-out, filter 0.8s ease-out;
+                    }
+                    ha-button:active {
+                      transform: scale(0.9);
+                      transition: transform 0.05s ease-in, filter 0.05s ease-in;
+                    }
+                    @media (prefers-color-scheme: light) {
+                      ha-button:active {
+                        filter: brightness(0.9) drop-shadow(0 0 6px rgba(0,0,0,0.25));
+                      }
+                    }
+                    @media (prefers-color-scheme: dark) {
+                      ha-button:active {
+                        filter: brightness(2) drop-shadow(0 0 8px rgba(255,255,255,0.6));
+                      }
+                    }
                 tap_action:
                   action: call-service
                   service: climate.turn_off
@@ -234,6 +251,23 @@ views:
                 card_mod:
                   style: |
                     .flex { margin-left: 0 !important; }
+                    ha-button {
+                      transition: transform 0.8s ease-out, filter 0.8s ease-out;
+                    }
+                    ha-button:active {
+                      transform: scale(0.9);
+                      transition: transform 0.05s ease-in, filter 0.05s ease-in;
+                    }
+                    @media (prefers-color-scheme: light) {
+                      ha-button:active {
+                        filter: brightness(0.9) drop-shadow(0 0 6px rgba(0,0,0,0.25));
+                      }
+                    }
+                    @media (prefers-color-scheme: dark) {
+                      ha-button:active {
+                        filter: brightness(2) drop-shadow(0 0 8px rgba(255,255,255,0.6));
+                      }
+                    }
                 tap_action:
                   action: call-service
                   service: climate.set_hvac_mode
@@ -252,6 +286,23 @@ views:
                 card_mod:
                   style: |
                     .flex { margin-left: 0 !important; }
+                    ha-button {
+                      transition: transform 0.8s ease-out, filter 0.8s ease-out;
+                    }
+                    ha-button:active {
+                      transform: scale(0.9);
+                      transition: transform 0.05s ease-in, filter 0.05s ease-in;
+                    }
+                    @media (prefers-color-scheme: light) {
+                      ha-button:active {
+                        filter: brightness(0.9) drop-shadow(0 0 6px rgba(0,0,0,0.25));
+                      }
+                    }
+                    @media (prefers-color-scheme: dark) {
+                      ha-button:active {
+                        filter: brightness(2) drop-shadow(0 0 8px rgba(255,255,255,0.6));
+                      }
+                    }
                 tap_action:
                   action: call-service
                   service: climate.set_hvac_mode
@@ -270,6 +321,23 @@ views:
                 card_mod:
                   style: |
                     .flex { margin-left: 0 !important; }
+                    ha-button {
+                      transition: transform 0.8s ease-out, filter 0.8s ease-out;
+                    }
+                    ha-button:active {
+                      transform: scale(0.9);
+                      transition: transform 0.05s ease-in, filter 0.05s ease-in;
+                    }
+                    @media (prefers-color-scheme: light) {
+                      ha-button:active {
+                        filter: brightness(0.9) drop-shadow(0 0 6px rgba(0,0,0,0.25));
+                      }
+                    }
+                    @media (prefers-color-scheme: dark) {
+                      ha-button:active {
+                        filter: brightness(2) drop-shadow(0 0 8px rgba(255,255,255,0.6));
+                      }
+                    }
                 tap_action:
                   action: call-service
                   service: climate.set_temperature
@@ -354,6 +422,23 @@ views:
                 card_mod:
                   style: |
                     .flex { margin-left: 0 !important; }
+                    ha-button {
+                      transition: transform 0.8s ease-out, filter 0.8s ease-out;
+                    }
+                    ha-button:active {
+                      transform: scale(0.9);
+                      transition: transform 0.05s ease-in, filter 0.05s ease-in;
+                    }
+                    @media (prefers-color-scheme: light) {
+                      ha-button:active {
+                        filter: brightness(0.9) drop-shadow(0 0 6px rgba(0,0,0,0.25));
+                      }
+                    }
+                    @media (prefers-color-scheme: dark) {
+                      ha-button:active {
+                        filter: brightness(2) drop-shadow(0 0 8px rgba(255,255,255,0.6));
+                      }
+                    }
                 tap_action:
                   action: call-service
                   service: climate.turn_off
@@ -370,6 +455,23 @@ views:
                 card_mod:
                   style: |
                     .flex { margin-left: 0 !important; }
+                    ha-button {
+                      transition: transform 0.8s ease-out, filter 0.8s ease-out;
+                    }
+                    ha-button:active {
+                      transform: scale(0.9);
+                      transition: transform 0.05s ease-in, filter 0.05s ease-in;
+                    }
+                    @media (prefers-color-scheme: light) {
+                      ha-button:active {
+                        filter: brightness(0.9) drop-shadow(0 0 6px rgba(0,0,0,0.25));
+                      }
+                    }
+                    @media (prefers-color-scheme: dark) {
+                      ha-button:active {
+                        filter: brightness(2) drop-shadow(0 0 8px rgba(255,255,255,0.6));
+                      }
+                    }
                 tap_action:
                   action: call-service
                   service: climate.set_hvac_mode
@@ -388,6 +490,23 @@ views:
                 card_mod:
                   style: |
                     .flex { margin-left: 0 !important; }
+                    ha-button {
+                      transition: transform 0.8s ease-out, filter 0.8s ease-out;
+                    }
+                    ha-button:active {
+                      transform: scale(0.9);
+                      transition: transform 0.05s ease-in, filter 0.05s ease-in;
+                    }
+                    @media (prefers-color-scheme: light) {
+                      ha-button:active {
+                        filter: brightness(0.9) drop-shadow(0 0 6px rgba(0,0,0,0.25));
+                      }
+                    }
+                    @media (prefers-color-scheme: dark) {
+                      ha-button:active {
+                        filter: brightness(2) drop-shadow(0 0 8px rgba(255,255,255,0.6));
+                      }
+                    }
                 tap_action:
                   action: call-service
                   service: climate.set_hvac_mode
@@ -406,6 +525,23 @@ views:
                 card_mod:
                   style: |
                     .flex { margin-left: 0 !important; }
+                    ha-button {
+                      transition: transform 0.8s ease-out, filter 0.8s ease-out;
+                    }
+                    ha-button:active {
+                      transform: scale(0.9);
+                      transition: transform 0.05s ease-in, filter 0.05s ease-in;
+                    }
+                    @media (prefers-color-scheme: light) {
+                      ha-button:active {
+                        filter: brightness(0.9) drop-shadow(0 0 6px rgba(0,0,0,0.25));
+                      }
+                    }
+                    @media (prefers-color-scheme: dark) {
+                      ha-button:active {
+                        filter: brightness(2) drop-shadow(0 0 8px rgba(255,255,255,0.6));
+                      }
+                    }
                 tap_action:
                   action: call-service
                   service: climate.set_temperature

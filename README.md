@@ -1,5 +1,7 @@
 # HA Heating Dashboard Generator
 
+**Version 1.2**
+
 A Home Assistant template that generates a complete heating control dashboard. No manual editing.
 
 1. Install [card-mod](https://github.com/thomasloven/lovelace-card-mod) (optional — see [install guide](docs/install-guide.md))

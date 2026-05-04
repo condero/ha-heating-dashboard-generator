@@ -273,6 +273,21 @@ To hide a button, set it to `false`. For example, to show only the off and comfo
 {%- set show_comfort_button = true %}
 ```
 
+### Button emojis
+
+Each button shows an emoji for quick recognition. The default set:
+
+| Button | Emoji | Name |
+|--------|-------|------|
+| Off | 💤 | Sleeping sign |
+| On | ♨️ | Hot springs |
+| Auto | ⏰ | Alarm clock |
+| Comfort | ☀️ | Sun with rays |
+
+All four are from Unicode 6.0 (Emoji 1.0, 2010) and render on all modern platforms (iOS, Android, Windows, macOS).
+
+To change an emoji, edit the `btn_*_action` values in the `i18n` dictionary. Not all Unicode symbols render as emoji on all platforms — characters like ⏻ (power symbol) are Miscellaneous Technical symbols without emoji presentation and may appear as blank or a text glyph on Android. Stick to characters from the [full emoji list](https://unicode.org/emoji/charts/full-emoji-list.html) for reliable cross-platform support.
+
 ## Battery threshold
 
 The battery warning triggers when the battery level drops below a threshold. Change it with `battery_low_threshold`:
